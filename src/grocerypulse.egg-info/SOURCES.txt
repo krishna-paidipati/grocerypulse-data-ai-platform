@@ -1,0 +1,8 @@
+pyproject.toml
+src/grocerypulse/__init__.py
+src/grocerypulse/main.py
+src/grocerypulse.egg-info/PKG-INFO
+src/grocerypulse.egg-info/SOURCES.txt
+src/grocerypulse.egg-info/dependency_links.txt
+src/grocerypulse.egg-info/requires.txt
+src/grocerypulse.egg-info/top_level.txt
