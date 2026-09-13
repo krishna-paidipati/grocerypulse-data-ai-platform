@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "SupplierType": {
+      "enum": [
+        "LOCAL",
+        "REGIONAL",
+        "NATIONAL",
+        "IMPORTER"
+      ],
+      "title": "SupplierType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "supplier_id": {
+      "pattern": "^SUP_\\d{4}$",
+      "title": "Supplier Id",
+      "type": "string"
+    },
+    "supplier_name": {
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Supplier Name",
+      "type": "string"
+    },
+    "supplier_type": {
+      "$ref": "#/$defs/SupplierType"
+    },
+    "country": {
+      "maxLength": 80,
+      "minLength": 2,
+      "title": "Country",
+      "type": "string"
+    },
+    "lead_time_days": {
+      "maximum": 365,
+      "minimum": 0,
+      "title": "Lead Time Days",
+      "type": "integer"
+    },
+    "min_order_qty": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Min Order Qty"
+    },
+    "reliability_score": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reliability Score"
+    },
+    "is_active": {
+      "default": true,
+      "title": "Is Active",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "supplier_id",
+    "supplier_name",
+    "supplier_type",
+    "country",
+    "lead_time_days",
+    "created_at"
+  ],
+  "title": "Supplier",
+  "type": "object"
+}

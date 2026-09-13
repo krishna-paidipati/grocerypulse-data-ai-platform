@@ -1,0 +1,193 @@
+{
+  "$defs": {
+    "ProductCategory": {
+      "enum": [
+        "DAIRY",
+        "BAKERY",
+        "FROZEN",
+        "PRODUCE",
+        "MEAT",
+        "BEVERAGES",
+        "GROCERY",
+        "PERSONAL_CARE",
+        "HOUSEHOLD"
+      ],
+      "title": "ProductCategory",
+      "type": "string"
+    },
+    "UnitMeasure": {
+      "enum": [
+        "L",
+        "ML",
+        "KG",
+        "G",
+        "EA"
+      ],
+      "title": "UnitMeasure",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "product_id": {
+      "pattern": "^PROD_\\d{6}$",
+      "title": "Product Id",
+      "type": "string"
+    },
+    "sku": {
+      "pattern": "^SKU_\\d{6}$",
+      "title": "Sku",
+      "type": "string"
+    },
+    "product_name": {
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Product Name",
+      "type": "string"
+    },
+    "brand": {
+      "anyOf": [
+        {
+          "maxLength": 120,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brand"
+    },
+    "category": {
+      "$ref": "#/$defs/ProductCategory"
+    },
+    "subcategory": {
+      "maxLength": 100,
+      "minLength": 2,
+      "title": "Subcategory",
+      "type": "string"
+    },
+    "unit_size": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unit Size"
+    },
+    "unit_measure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UnitMeasure"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "unit_price": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+          "type": "string"
+        }
+      ],
+      "title": "Unit Price"
+    },
+    "cost_price": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+          "type": "string"
+        }
+      ],
+      "title": "Cost Price"
+    },
+    "vat_rate": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        }
+      ],
+      "title": "Vat Rate"
+    },
+    "shelf_life_days": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shelf Life Days"
+    },
+    "is_perishable": {
+      "title": "Is Perishable",
+      "type": "boolean"
+    },
+    "supplier_id": {
+      "anyOf": [
+        {
+          "pattern": "^SUP_\\d{4}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supplier Id"
+    },
+    "is_active": {
+      "default": true,
+      "title": "Is Active",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "product_id",
+    "sku",
+    "product_name",
+    "category",
+    "subcategory",
+    "unit_price",
+    "cost_price",
+    "vat_rate",
+    "is_perishable",
+    "created_at"
+  ],
+  "title": "Product",
+  "type": "object"
+}

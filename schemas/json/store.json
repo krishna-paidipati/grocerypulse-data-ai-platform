@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "StoreFormat": {
+      "enum": [
+        "EXPRESS",
+        "SUPERMARKET",
+        "SUPERSTORE",
+        "EXTRA",
+        "FULFILLMENT_CENTRE"
+      ],
+      "title": "StoreFormat",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "store_id": {
+      "description": "Unique identifier for the store, e.g., STORE_0001",
+      "pattern": "^STORE_\\d{4}$",
+      "title": "Store Id",
+      "type": "string"
+    },
+    "store_name": {
+      "description": "Name of the store, e.g., 'Downtown Supermarket'",
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Store Name",
+      "type": "string"
+    },
+    "store_format": {
+      "$ref": "#/$defs/StoreFormat"
+    },
+    "region": {
+      "maxLength": 80,
+      "minLength": 2,
+      "title": "Region",
+      "type": "string"
+    },
+    "city": {
+      "maxLength": 80,
+      "minLength": 2,
+      "title": "City",
+      "type": "string"
+    },
+    "postcode": {
+      "maxLength": 10,
+      "minLength": 5,
+      "title": "Postcode",
+      "type": "string"
+    },
+    "latitude": {
+      "anyOf": [
+        {
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        }
+      ],
+      "title": "Latitude"
+    },
+    "longitude": {
+      "anyOf": [
+        {
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        }
+      ],
+      "title": "Longitude"
+    },
+    "open_date": {
+      "format": "date",
+      "title": "Open Date",
+      "type": "string"
+    },
+    "floor_area_sqm": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Floor Area Sqm"
+    },
+    "is_active": {
+      "default": true,
+      "title": "Is Active",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "store_id",
+    "store_name",
+    "store_format",
+    "region",
+    "city",
+    "postcode",
+    "latitude",
+    "longitude",
+    "open_date",
+    "created_at"
+  ],
+  "title": "Store",
+  "type": "object"
+}

@@ -1,0 +1,100 @@
+{
+  "$defs": {
+    "CustomerSegment": {
+      "enum": [
+        "VALUE",
+        "FAMILY",
+        "PREMIUM",
+        "CONVENIENCE",
+        "OTHER"
+      ],
+      "title": "CustomerSegment",
+      "type": "string"
+    },
+    "SalesChannel": {
+      "enum": [
+        "STORE",
+        "WEB",
+        "APP"
+      ],
+      "title": "SalesChannel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "customer_id": {
+      "pattern": "^CUST_\\d{6}$",
+      "title": "Customer Id",
+      "type": "string"
+    },
+    "loyalty_id": {
+      "anyOf": [
+        {
+          "pattern": "^LOY_\\d{6}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Loyalty Id"
+    },
+    "customer_segment": {
+      "$ref": "#/$defs/CustomerSegment"
+    },
+    "home_region": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Home Region"
+    },
+    "signup_date": {
+      "format": "date",
+      "title": "Signup Date",
+      "type": "string"
+    },
+    "preferred_channel": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SalesChannel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "marketing_opt_in": {
+      "default": false,
+      "title": "Marketing Opt In",
+      "type": "boolean"
+    },
+    "is_active": {
+      "default": true,
+      "title": "Is Active",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "customer_id",
+    "customer_segment",
+    "signup_date",
+    "created_at"
+  ],
+  "title": "Customer",
+  "type": "object"
+}
