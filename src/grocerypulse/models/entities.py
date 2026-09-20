@@ -1,9 +1,31 @@
+"""Canonical GroceryPulse retail entity models.
+
+Code Owner:
+    Vijay Krishna Paidipati
+
+Component:
+    Retail Domain Model / Canonical Data Contracts
+
+Purpose:
+    Defines validated representations of core retail entities including
+    stores, suppliers, products, and customers.
+
+Developer Notes:
+    These models are authoritative contracts for the initial GroceryPulse
+    domain. Changes can affect generated JSON Schemas and downstream
+    producers, consumers, transformations, APIs, and tests.
+
+    Breaking changes should therefore be treated as explicit schema
+    evolution rather than casual field modifications.
+"""
+
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Self
 
 from pydantic import Field, field_validator, model_validator
 
-from grocerypulse.models.base import GroceryPuluseModel
+from grocerypulse.models.base import GroceryPulseModel
 from grocerypulse.models.enums import (
     CustomerSegment,
     ProductCategory,
@@ -14,7 +36,21 @@ from grocerypulse.models.enums import (
 )
 
 
-class Store(GroceryPuluseModel):
+class Store(GroceryPulseModel):
+    """Represent one GroceryPulse retail or fulfilment location.
+
+    Grain:
+        One model instance represents one physical or fulfilment location.
+
+    Primary Key:
+        ``store_id``
+
+    Notes:
+        Geographic coordinates are validated against globally valid latitude
+        and longitude ranges. Future planned stores may require extending the
+        lifecycle model rather than weakening the current opening-date rule.
+    """
+
     store_id: str = Field(
         pattern=r"^STORE_\d{4}$",
         description="Unique identifier for the store, e.g., STORE_0001",
@@ -48,7 +84,7 @@ class Store(GroceryPuluseModel):
         le=90,
     )
 
-    longitude: Decimal  = Field(
+    longitude: Decimal = Field(
         ge=-180,
         le=180,
     )
@@ -64,7 +100,44 @@ class Store(GroceryPuluseModel):
 
     created_at: datetime
 
-class Supplier(GroceryPuluseModel):
+    @field_validator("open_date")
+    @classmethod
+    def open_date_cannot_be_future(cls, value: date) -> date:
+        """Reject opening dates later than the current calendar date.
+
+        Args:
+        value:
+            Store opening date supplied by the producer.
+
+        Returns:
+        The validated opening date.
+
+        Raises:
+        ValueError:
+            If the opening date is in the future.
+        """
+        if value > datetime.now(UTC).date():
+            raise ValueError("Open date cannot be in the future")
+        return value
+
+
+class Supplier(GroceryPulseModel):
+    """Represent one GroceryPulse product supplier.
+
+    Grain:
+        One model instance represents one product supplier.
+
+    Primary Key:
+        ``supplier_id``
+
+    Notes:
+        Supplier reliability scores are represented as a decimal between 0.0
+        and 1.0, where 1.0 indicates the highest reliability.
+        Future planned suppliers may require extending the lifecycle model rather than weakening
+        the current reliability score rule.
+
+    """
+
     supplier_id: str = Field(
         pattern=r"^SUP_\d{4}$",
     )
@@ -77,10 +150,7 @@ class Supplier(GroceryPuluseModel):
         min_length=2,
         max_length=80,
     )
-    lead_time_days: int = Field(
-        ge=0,
-        le=365
-    )
+    lead_time_days: int = Field(ge=0, le=365)
     min_order_qty: int | None = Field(
         ge=0,
         default=None,
@@ -93,7 +163,24 @@ class Supplier(GroceryPuluseModel):
     is_active: bool = True
     created_at: datetime
 
-class Product(GroceryPuluseModel):
+
+class Product(GroceryPulseModel):
+    """Represent one sellable GroceryPulse stock-keeping unit (SKU).
+
+    Grain:
+        One model instance represents one sellable SKU.
+
+    Primary Key:
+        ``product_id``
+
+    Business Key:
+        ``sku``
+
+    Notes:
+        Standard product pricing is stored here. Promotional checkout pricing
+        will be modelled separately rather than modifying canonical list price.
+    """
+
     product_id: str = Field(
         pattern=r"^PROD_\d{6}$",
     )
@@ -122,10 +209,7 @@ class Product(GroceryPuluseModel):
         ge=0,
         decimal_places=2,
     )
-    cost_price: Decimal = Field(
-        ge=0,
-        decimal_places=2
-    )
+    cost_price: Decimal = Field(ge=0, decimal_places=2)
     vat_rate: Decimal = Field(
         ge=0,
         le=1,
@@ -143,23 +227,58 @@ class Product(GroceryPuluseModel):
     created_at: datetime
 
     @model_validator(mode="after")
-    def validate_perishable_product(self):
+    def validate_perishable_product(self) -> Self:
+        """Ensure perishable products have a defined shelf life.
+
+        Returns:
+            The validated product instance.
+
+        Raises:
+            ValueError: If a perishable product does not have a defined shelf life.
+
+        """
         if self.is_perishable and self.shelf_life_days is None:
-            raise ValueError(
-                "Perishable products must have a shelf life defined"
-            )
+            raise ValueError("Perishable products must have a shelf life defined")
         return self
-    
+
     @model_validator(mode="after")
-    def validate_product_margin(self):
-        if self.unit_price < self.cost_price:
-            raise ValueError(
-                "Unit price must be greater than or equal to cost price"
-            )
+    def validate_product_margin(self) -> Self:
+        """Ensure canonical cost does not exceed standard selling price.
+
+        Promotional discounts and loss-leader behaviour will be represented in
+        separate promotional and transactional datasets. This rule therefore
+        applies only to the canonical standard product price.
+
+        Returns:
+            The validated product instance.
+
+        Raises:
+            ValueError: If a perishable product has no shelf-life value.
+        """
+        if self.is_perishable and self.shelf_life_days is None:
+            raise ValueError("Perishable products must define shelf_life_days")
+
         return self
 
 
-class Customer(GroceryPuluseModel):
+class Customer(GroceryPulseModel):
+    """Represent one GroceryPulse retail customer.
+
+    Grain:
+        One model instance represents one retail customer.
+
+    Primary Key:
+        ``customer_id``
+
+    Business Key:
+        ``loyalty_id``
+
+    Notes:
+        Customer segmentation and marketing preferences are stored here. Future
+        transactional and behavioural datasets will be modelled separately rather than
+        modifying canonical customer attributes.
+    """
+
     customer_id: str = Field(
         pattern=r"^CUST_\d{6}$",
     )
@@ -181,6 +300,16 @@ class Customer(GroceryPuluseModel):
     @field_validator("signup_date")
     @classmethod
     def signup_date_cannot_be_future(cls, value: date) -> date:
+        """Reject signup dates later than the current calendar date.
+
+        Args:
+            value: Customer signup date supplied by the producer.
+        returns:
+            The validated signup date.
+        raises:
+            ValueError: If the signup date is in the future.
+
+        """
         if value > datetime.now(UTC).date():
             raise ValueError("Signup date cannot be in the future")
         return value

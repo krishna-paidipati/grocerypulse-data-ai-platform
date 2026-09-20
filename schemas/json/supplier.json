@@ -1,6 +1,7 @@
 {
   "$defs": {
     "SupplierType": {
+      "description": "Business-defined supplier types.",
       "enum": [
         "LOCAL",
         "REGIONAL",
@@ -12,6 +13,7 @@
     }
   },
   "additionalProperties": false,
+  "description": "Represent one GroceryPulse product supplier.\n\nGrain:\n    One model instance represents one product supplier.\n\nPrimary Key:\n    ``supplier_id``\n\nNotes:\n    Supplier reliability scores are represented as a decimal between 0.0\n    and 1.0, where 1.0 indicates the highest reliability.\n    Future planned suppliers may require extending the lifecycle model rather than weakening\n    the current reliability score rule.",
   "properties": {
     "supplier_id": {
       "pattern": "^SUP_\\d{4}$",

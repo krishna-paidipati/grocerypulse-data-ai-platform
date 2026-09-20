@@ -1,6 +1,7 @@
 {
   "$defs": {
     "CustomerSegment": {
+      "description": "Business-defined customer segmentation categories.",
       "enum": [
         "VALUE",
         "FAMILY",
@@ -12,6 +13,7 @@
       "type": "string"
     },
     "SalesChannel": {
+      "description": "Supported GroceryPulse sales channels.",
       "enum": [
         "STORE",
         "WEB",
@@ -22,6 +24,7 @@
     }
   },
   "additionalProperties": false,
+  "description": "Represent one GroceryPulse retail customer.\n\nGrain:\n    One model instance represents one retail customer.\n\nPrimary Key:\n    ``customer_id``\n\nBusiness Key:\n    ``loyalty_id``\n\nNotes:\n    Customer segmentation and marketing preferences are stored here. Future\n    transactional and behavioural datasets will be modelled separately rather than\n    modifying canonical customer attributes.",
   "properties": {
     "customer_id": {
       "pattern": "^CUST_\\d{6}$",

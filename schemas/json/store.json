@@ -1,6 +1,7 @@
 {
   "$defs": {
     "StoreFormat": {
+      "description": "Supported GroceryPulse physical and fulfilment store formats.",
       "enum": [
         "EXPRESS",
         "SUPERMARKET",
@@ -13,6 +14,7 @@
     }
   },
   "additionalProperties": false,
+  "description": "Represent one GroceryPulse retail or fulfilment location.\n\nGrain:\n    One model instance represents one physical or fulfilment location.\n\nPrimary Key:\n    ``store_id``\n\nNotes:\n    Geographic coordinates are validated against globally valid latitude\n    and longitude ranges. Future planned stores may require extending the\n    lifecycle model rather than weakening the current opening-date rule.",
   "properties": {
     "store_id": {
       "description": "Unique identifier for the store, e.g., STORE_0001",

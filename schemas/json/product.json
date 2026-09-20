@@ -1,6 +1,7 @@
 {
   "$defs": {
     "ProductCategory": {
+      "description": "Business-defined product categories.",
       "enum": [
         "DAIRY",
         "BAKERY",
@@ -16,6 +17,7 @@
       "type": "string"
     },
     "UnitMeasure": {
+      "description": "Supported unit measures for product pricing and inventory.",
       "enum": [
         "L",
         "ML",
@@ -28,6 +30,7 @@
     }
   },
   "additionalProperties": false,
+  "description": "Represent one sellable GroceryPulse stock-keeping unit (SKU).\n\nGrain:\n    One model instance represents one sellable SKU.\n\nPrimary Key:\n    ``product_id``\n\nBusiness Key:\n    ``sku``\n\nNotes:\n    Standard product pricing is stored here. Promotional checkout pricing\n    will be modelled separately rather than modifying canonical list price.",
   "properties": {
     "product_id": {
       "pattern": "^PROD_\\d{6}$",
