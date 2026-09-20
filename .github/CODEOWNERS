@@ -1,0 +1,17 @@
+# Default owner for the entire GroceryPulse repository
+* @krishna-paidipati
+
+# Canonical data models
+/src/grocerypulse/models/ @krishna-paidipati
+
+# Schema generation
+/src/grocerypulse/schemas/ @krishna-paidipati
+
+# Generated data contracts
+/schemas/ @krishna-paidipati
+
+# Tests
+/tests/ @krishna-paidipati
+
+# Documentation
+/docs/ @krishna-paidipati
