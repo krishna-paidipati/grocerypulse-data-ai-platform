@@ -1,0 +1,57 @@
+site_name: GroceryPulse Data + AI Platform
+site_description: Production-style grocery retail Data, ML and GenAI engineering platform
+site_author: Vijay Paidipati
+
+repo_name: grocerypulse-data-ai-platform
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tabs
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+
+  - Architecture:
+      - Retail Domain Model: architecture/retail-domain-model.md
+
+  - Developer Guide:
+      - Engineering Standards: development/code-standards.md
+
+  - Learning Journal:
+      - Python Entry Points: what-i-learned/001-python-entry-points.md
+      - Data Grain and Keys: what-i-learned/002-data-grain-and-keys.md
+      - Data Contracts and Validation: what-i-learned/003-data-contracts-and-validation.md
+
+  - API Reference:
+      - Models: reference/models.md
+      - Schema Export: reference/schemas.md
