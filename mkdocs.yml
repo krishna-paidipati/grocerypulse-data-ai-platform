@@ -52,6 +52,9 @@ nav:
       - Data Grain and Keys: what-i-learned/002-data-grain-and-keys.md
       - Data Contracts and Validation: what-i-learned/003-data-contracts-and-validation.md
 
+  - Interview Preparation:
+      - Engineering Playbook: interview/grocerypulse-interview-playbook.md
+
   - API Reference:
       - Models: reference/models.md
       - Schema Export: reference/schemas.md
