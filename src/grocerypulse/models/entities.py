@@ -253,10 +253,10 @@ class Product(GroceryPulseModel):
             The validated product instance.
 
         Raises:
-            ValueError: If a perishable product has no shelf-life value.
+            ValueError: If cost price exceeds the standard selling price.
         """
-        if self.is_perishable and self.shelf_life_days is None:
-            raise ValueError("Perishable products must define shelf_life_days")
+        if self.cost_price > self.unit_price:
+            raise ValueError("Cost price cannot exceed standard unit price")
 
         return self
 
