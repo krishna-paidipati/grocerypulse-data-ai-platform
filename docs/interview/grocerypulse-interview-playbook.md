@@ -1412,6 +1412,819 @@ The generated files remained identical.
 
 ---
 
+# 35A. Deterministic Synthetic Master Data
+
+GP-004 introduced deterministic synthetic master-data generation for GroceryPulse.
+
+The objective was not simply to create fake records. The objective was to build a repeatable, validated and testable data-generation boundary that can support later Data Engineering work without depending on proprietary retailer data.
+
+The generated master domains are:
+
+```text
+Supplier
+Store
+Product
+Customer
+```
+
+The implementation also introduced:
+
+```text
+MasterDataGenerator
+        |
+        v
+MasterDataset
+        |
+        v
+JSONL Export
+        |
+        v
+Command-Line Interface
+```
+
+The design deliberately uses the Python standard library together with the existing Pydantic canonical contracts.
+
+Libraries such as Faker, pandas and PyArrow were intentionally deferred because they were not required to solve the current problem.
+
+## Why Synthetic Data?
+
+GroceryPulse is designed as a production-style retail Data, ML and GenAI platform, but it must not depend on proprietary retailer data.
+
+Synthetic data provides controlled datasets for:
+
+- pipeline development,
+- contract validation,
+- transformation development,
+- integration testing,
+- reproducible demonstrations,
+- failure simulation,
+- ML experimentation,
+- and portfolio demonstrations.
+
+The important engineering distinction is that useful synthetic data should preserve meaningful domain relationships and constraints rather than merely generating random values.
+
+For example:
+
+```text
+Product.supplier_id
+```
+
+must reference an actual generated Supplier.
+
+That makes the synthetic dataset structurally useful for downstream engineering.
+
+## Deterministic Generation
+
+The generator accepts an explicit seed and creates its own pseudo-random number generator:
+
+```python
+random.Random(seed)
+```
+
+This is preferable to relying on uncontrolled global random state.
+
+For the current implementation:
+
+```text
+same code
++ same seed
++ same counts
++ same generation sequence
+--------------------------------
+= same generated dataset
+```
+
+This makes tests and demonstrations reproducible.
+
+A different seed produces a different deterministic dataset.
+
+## Why the PRNG Is Not Security-Sensitive
+
+Python's standard pseudo-random generator is not suitable for security-sensitive purposes such as:
+
+- passwords,
+- authentication tokens,
+- cryptographic keys,
+- or security secrets.
+
+That is not the requirement here.
+
+GroceryPulse deliberately needs reproducibility rather than cryptographic unpredictability.
+
+The PRNG is used only for synthetic retail test data.
+
+The narrow security-linter suppression around this use is therefore an intentional engineering decision rather than a blanket disabling of the security rule.
+
+## Dependency Ordering and Referential Integrity
+
+The master domains are not independent.
+
+Products reference suppliers:
+
+```text
+Supplier
+   |
+   | supplier_id
+   v
+Product
+```
+
+Therefore suppliers must be generated before products.
+
+The dataset orchestration sequence is:
+
+```text
+Suppliers
+    |
+    v
+Stores
+    |
+    v
+Products ---- references generated Suppliers
+    |
+    v
+Customers
+```
+
+Products choose supplier IDs from the suppliers that were actually generated.
+
+This guarantees referential integrity within the generated dataset.
+
+Tests explicitly verify that every populated:
+
+```text
+Product.supplier_id
+```
+
+exists in the generated Supplier collection.
+
+## Validation at the Generation Boundary
+
+Synthetic data is not allowed to bypass the canonical GroceryPulse contracts.
+
+The generator constructs:
+
+```text
+Supplier
+Store
+Product
+Customer
+```
+
+Pydantic models directly.
+
+Conceptually:
+
+```text
+Synthetic values
+      |
+      v
+Canonical Pydantic Contract
+      |
+      v
+Validated Entity
+      |
+      v
+MasterDataset
+```
+
+If generated data violates a canonical rule, generation fails immediately.
+
+This is preferable to generating arbitrary dictionaries and discovering invalid data much later in a pipeline.
+
+It applies the fail-fast principle at the data-generation boundary.
+
+## Dataset Orchestration
+
+`MasterDataset` provides an application-level container for the generated master entities.
+
+Conceptually:
+
+```python
+@dataclass(frozen=True)
+class MasterDataset:
+    suppliers: list[Supplier]
+    stores: list[Store]
+    products: list[Product]
+    customers: list[Customer]
+```
+
+A dataclass was chosen rather than another Pydantic business model because `MasterDataset` is an application-level orchestration container, not a new canonical retail entity or external data contract.
+
+This distinction prevents implementation containers from being confused with business-domain contracts.
+
+## Separation of Concerns
+
+Generation and persistence are intentionally separated.
+
+```text
+MasterDataGenerator
+        |
+        | creates validated objects
+        v
+MasterDataset
+        |
+        | passed to exporter
+        v
+export_master_dataset()
+        |
+        v
+JSONL files
+```
+
+The generator does not decide how datasets are persisted.
+
+The exporter does not decide how records are generated.
+
+This improves:
+
+- testability,
+- maintainability,
+- reuse,
+- and future extensibility.
+
+For example, a future Parquet exporter could consume the same generated dataset without redesigning the generator.
+
+## Why JSON Lines?
+
+GP-004 exports master data using JSON Lines (`.jsonl`).
+
+JSONL stores one JSON object per line:
+
+```text
+{"supplier_id":"SUP_0001", ...}
+{"supplier_id":"SUP_0002", ...}
+{"supplier_id":"SUP_0003", ...}
+```
+
+It was selected because it is:
+
+- human-readable,
+- easy to inspect,
+- easy to stream,
+- record-oriented,
+- easy to test,
+- compatible with nested structures,
+- and a useful bridge toward future S3 and Spark processing.
+
+CSV was not required for this phase.
+
+Parquet will become more appropriate when GroceryPulse reaches columnar analytical processing with technologies such as PyArrow or Spark.
+
+The goal was to choose the simplest format that correctly satisfies the current engineering requirement.
+
+## Serialization
+
+Pydantic models are serialized using:
+
+```python
+model_dump_json()
+```
+
+rather than manually converting fields.
+
+This is important because GroceryPulse models contain values such as:
+
+- `Decimal`,
+- `date`,
+- `datetime`,
+- and enums.
+
+Pydantic already understands how to serialize those values consistently into JSON-compatible representations.
+
+## UTF-8
+
+Export files are explicitly written using UTF-8.
+
+Conceptually:
+
+```python
+open(..., encoding="utf-8")
+```
+
+Explicit encoding avoids relying on environment-specific defaults and makes file behaviour more portable and predictable.
+
+## Idempotent Snapshot Export
+
+The exporter opens each dataset file using write mode:
+
+```python
+"w"
+```
+
+rather than append mode:
+
+```python
+"a"
+```
+
+For this snapshot-export use case, rerunning the same generation command replaces the previous snapshot rather than appending duplicate records.
+
+Conceptually:
+
+```text
+Run 1
+100 customers
+      |
+      v
+customers.jsonl = 100 rows
+
+Run 2
+same configuration
+      |
+      v
+customers.jsonl = 100 rows
+```
+
+rather than:
+
+```text
+customers.jsonl = 200 duplicated rows
+```
+
+This provides idempotent behaviour for the local snapshot files.
+
+The current exporter is not intended to provide transactional atomicity across all four files. More sophisticated publication semantics can be introduced when required by later production architecture.
+
+## Determinism vs Idempotency
+
+These concepts are related but different.
+
+**Determinism** means:
+
+```text
+same inputs -> same output
+```
+
+For example:
+
+```text
+seed 42 + same counts + same generation sequence
+    ->
+same generated records
+```
+
+**Idempotency** means:
+
+```text
+repeating an operation
+does not keep changing the resulting state
+```
+
+For example, rerunning the snapshot export replaces the same output files rather than continually appending duplicate data.
+
+A system can be deterministic without being idempotent, and it can be idempotent without being deterministic.
+
+This distinction is important in Data Engineering because retry behaviour is a major production concern.
+
+## Reproducibility Verification with SHA-256
+
+Automated tests verify deterministic generation.
+
+GP-004 also included a manual byte-level reproducibility check using SHA-256 checksums:
+
+```bash
+shasum -a 256 data/synthetic/master/*.jsonl
+```
+
+The generator was executed again using the same configuration:
+
+```bash
+uv run python -m grocerypulse.generators.generate
+```
+
+and the checksums were recalculated.
+
+The observed hashes remained identical:
+
+```text
+customers.jsonl
+cce0ed27f3b07ba36df0ba509a5d27015970a70b92a64750e3dafeb04a12be0a
+
+products.jsonl
+b30240d98278e0d81bc0a26118c51665f89ba138f9a86b99fcf5f4db01aea4bc
+
+stores.jsonl
+6d830593cf92652776003d0a725150e0eb11016256988bff7bebfd6761888ac9
+
+suppliers.jsonl
+9f9fa719353bf36fdb672a444ff964d1e87d290ed75a4cd30bc030ae1b156397
+```
+
+For the current generator, configuration and execution environment, this demonstrates byte-level reproducibility.
+
+The wording is intentionally precise: reproducibility should be demonstrated under defined conditions rather than claimed universally without qualification.
+
+## Filesystem Testing with `tmp_path`
+
+Exporter tests use pytest's:
+
+```python
+tmp_path
+```
+
+fixture.
+
+This creates an isolated temporary filesystem location for each test.
+
+That avoids:
+
+- writing test artifacts into the repository,
+- depending on developer-specific directories,
+- collisions between tests,
+- and manual cleanup.
+
+It also allows the tests to inspect real file output rather than mocking away the filesystem behaviour being tested.
+
+## CLI Testing
+
+The synthetic-data command-line interface uses `argparse`.
+
+The CLI supports configuration such as:
+
+```text
+--seed
+--suppliers
+--stores
+--products
+--customers
+--output-dir
+```
+
+Tests patch:
+
+```python
+sys.argv
+```
+
+using `unittest.mock.patch`.
+
+This allows the CLI entry point to be tested inside pytest without starting a separate subprocess.
+
+The tests verify:
+
+- default generation,
+- custom record counts,
+- and deterministic output for identical CLI configuration.
+
+## Generated Data Repository Policy
+
+Runtime-generated synthetic datasets are not source code.
+
+The repository therefore ignores:
+
+```text
+data/synthetic/
+```
+
+The rule was verified using:
+
+```bash
+git check-ignore -v data/synthetic/master/products.jsonl
+```
+
+This prevents large or frequently regenerated datasets from polluting Git history.
+
+The generator, tests, contracts and documentation are version-controlled because they define how the data is produced.
+
+The generated runtime output is reproducible and therefore does not need to be committed.
+
+If small stable fixtures are required later, they can be intentionally maintained separately under a location such as:
+
+```text
+tests/fixtures/
+```
+
+or:
+
+```text
+data/samples/
+```
+
+## India-First Scenario, Country-Neutral Core
+
+The canonical GroceryPulse domain is intended to remain reusable across countries.
+
+GP-004's synthetic scenario is intentionally India-first.
+
+Current generated examples include Bengaluru/Karnataka store locations and primarily Indian supplier context, with some international sourcing scenarios.
+
+The important architectural distinction is:
+
+```text
+Canonical domain model
+        =
+country-neutral business concepts
+
+Synthetic GP-004 scenario
+        =
+India-first test data
+```
+
+Geography should therefore remain data/configuration rather than being hard-coded into the core domain model wherever possible.
+
+## Product and Supplier Relationship
+
+The current canonical Product model contains:
+
+```text
+supplier_id
+```
+
+This is sufficient for the GP-004 milestone because it allows referential integrity and meaningful Product-to-Supplier relationships.
+
+It is not necessarily the final procurement model.
+
+A mature retail platform may allow the same product to be sourced from multiple suppliers.
+
+A future model could introduce:
+
+```text
+Supplier
+    |
+    v
+SupplierProduct
+    |
+    v
+Product
+```
+
+`SupplierProduct` could hold supplier-specific attributes such as:
+
+```text
+supplier SKU
+purchase price
+lead time
+minimum order quantity
+currency
+preferred supplier status
+```
+
+The current design is therefore an intentional milestone simplification rather than an assumption that one product can only ever have one supplier.
+
+## Product-Modelling Evolution
+
+The current `ProductCategory` enum provides controlled vocabulary for the initial platform.
+
+As GroceryPulse becomes capable of supporting arbitrary retail assortments, hard-coded categories may become too restrictive.
+
+A future design may move product taxonomy into master data or another configurable hierarchy.
+
+This is particularly relevant because the intended platform should eventually support categories such as:
+
+- produce,
+- flowers,
+- cakes,
+- cookies,
+- coffee,
+- subscriptions,
+- and future product categories that are not yet known.
+
+The key principle is to evolve the model deliberately rather than modifying canonical contracts opportunistically during unrelated work.
+
+## Tax-Modelling Evolution
+
+The current canonical Product contract contains:
+
+```text
+vat_rate
+```
+
+That terminology reflects an earlier model assumption.
+
+GP-004's India-first synthetic scenario deliberately avoids inventing inaccurate Indian GST behaviour and currently generates a zero value for this field.
+
+A future schema-evolution milestone should introduce a more appropriate tax model that can support the relevant jurisdictions without embedding incorrect tax logic into synthetic generation.
+
+This is preferable to pretending that a field name designed around one tax system automatically represents every jurisdiction correctly.
+
+## Random-Stream Coupling
+
+The current `MasterDataGenerator` owns one seeded `random.Random` instance.
+
+This means generated values depend on the sequence in which generator methods consume random values.
+
+For example:
+
+```text
+generate suppliers
+then stores
+```
+
+may produce different store random values than calling:
+
+```text
+generate stores
+```
+
+on a fresh generator with the same seed.
+
+The current GP-004 reproducibility guarantee is therefore:
+
+```text
+same seed
++ same counts
++ same generate_dataset() sequence
+=
+same dataset
+```
+
+This is sufficient for the current milestone.
+
+If future requirements demand independent reproducibility for each domain, GroceryPulse could derive separate deterministic random streams, for example:
+
+```text
+master seed
+   |
+   +--> supplier RNG
+   +--> store RNG
+   +--> product RNG
+   +--> customer RNG
+```
+
+That would reduce coupling between domain generation sequences.
+
+It is deliberately not implemented yet because the current requirement does not justify the additional complexity.
+
+## Testing Strategy
+
+GP-004 tests several different dimensions.
+
+### Contract correctness
+
+Generated objects must satisfy the canonical Pydantic contracts.
+
+### Cardinality
+
+Requested record counts must be produced.
+
+### Identifier uniqueness
+
+Generated identifiers and relevant business keys must be unique.
+
+### Referential integrity
+
+Product supplier references must point to generated suppliers.
+
+### Determinism
+
+The same seed and configuration must produce identical datasets.
+
+### Variation
+
+Different seeds should produce different generated values.
+
+### Boundary behaviour
+
+Invalid counts and impossible generation requests should fail explicitly.
+
+### Export correctness
+
+JSONL files must contain valid serialized records with expected counts.
+
+### Idempotency
+
+Repeated snapshot exports must not append duplicate records.
+
+### CLI integration
+
+The command-line entry point must correctly connect argument parsing, generation and export.
+
+This provides more confidence than testing only individual helper functions.
+
+## Problem Encountered: Missing Product Tests
+
+During GP-004, Product generator code was initially implemented but the intended Product tests had not actually been appended to the test file.
+
+The diagnostic signal was important:
+
+```text
+pytest --collect-only -q
+```
+
+still reported the previous test count.
+
+Searching for the expected tests also showed that they were absent.
+
+This produced an important engineering lesson:
+
+> Writing or discussing a test is not evidence that pytest has collected it.
+
+Test collection should be verified when expected test counts do not change.
+
+Another important observation was that coverage produced during:
+
+```bash
+pytest --collect-only
+```
+
+is not meaningful as full-suite coverage because tests are only collected, not executed.
+
+The authoritative coverage result comes from the normal complete pytest run.
+
+## Problem Encountered: Strict Annotation Rule
+
+A private test helper initially triggered Ruff:
+
+```text
+ANN202
+```
+
+because the function did not declare its return type.
+
+The correct response was to add the real type annotation rather than suppressing the rule.
+
+For example:
+
+```python
+def _generate_test_dataset() -> MasterDataset: ...
+```
+
+This reinforces the repository's strict typing discipline.
+
+## Verified GP-004 Engineering Evidence
+
+At the completed implementation checkpoint:
+
+```text
+74 tests passed
+95.03% total test coverage
+85% minimum coverage required
+Ruff formatting passed
+Ruff lint passed
+```
+
+The repository also maintains strict mypy checking using the canonical command:
+
+```bash
+uv run mypy src tests
+```
+
+Full repository quality gates remain authoritative before the milestone is committed.
+
+## Production Considerations
+
+The current GP-004 implementation intentionally solves the local synthetic-master-data requirement without prematurely building distributed infrastructure.
+
+Future evolution may include:
+
+```text
+larger datasets
+        |
+        v
+Parquet
+        |
+        v
+S3
+        |
+        v
+PySpark
+        |
+        v
+Snowflake
+```
+
+Additional production concerns may include:
+
+- atomic dataset publication,
+- manifest files,
+- dataset versioning,
+- schema versions,
+- partitioning,
+- lineage,
+- object-store semantics,
+- data-quality metrics,
+- larger-scale generation,
+- and failure recovery.
+
+Those concerns should be introduced when the architecture reaches the stage where they provide real value.
+
+## Engineering Principle
+
+The main lesson from GP-004 is:
+
+> Synthetic data should be engineered as a reproducible, validated dataset with meaningful domain relationships, not treated as arbitrary fake records.
+
+The implementation deliberately combines:
+
+```text
+determinism
++ canonical contracts
++ referential integrity
++ separation of concerns
++ idempotent export
++ automated testing
++ reproducibility evidence
+```
+
+This creates a reliable foundation for later GroceryPulse ingestion, transformation, streaming, analytics and ML work.
+
+## Interview Talking Point
+
+A concise explanation is:
+
+> "For GroceryPulse I needed realistic development data without depending on proprietary retailer datasets. I built a deterministic synthetic master-data generator using a dedicated seeded Python PRNG and the existing Pydantic canonical contracts. Suppliers are generated before products so Product-to-Supplier referential integrity is guaranteed. Generation is separated from persistence, and the dataset is exported as UTF-8 JSONL using idempotent snapshot writes. I tested counts, uniqueness, contract validity, foreign keys, deterministic behaviour, filesystem output and the CLI, and I independently verified repeatability using SHA-256 checksums. I also documented an important limitation: the current domains share one random stream, so reproducibility assumes the same generation sequence. If independent domain reproducibility becomes necessary, I would derive separate deterministic streams rather than adding that complexity prematurely."
+
 # PART VII — INTERVIEW QUESTIONS
 
 # 36. Tell Me About GroceryPulse

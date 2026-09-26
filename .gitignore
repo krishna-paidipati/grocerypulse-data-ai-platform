@@ -41,3 +41,6 @@ logs/
 
 # Generated documentation site
 site/
+
+# Generated synthetic datasets
+data/synthetic/
